@@ -120,8 +120,7 @@ def get_publish_date(weeks_ahead=0):
     publish_date = today + timedelta(days=days_until_monday + (weeks_ahead * 7))
     return publish_date.replace(hour=8, minute=0, second=0, microsecond=0).isoformat()
 
-def push_post(post, content, publish_date, config, logger):
-    global success_count, skip_count, error_count, dupe_count
+def push_post(post, content, publish_date, config, logger, results):
     global success_count, skip_count, error_count, dupe_count
 
     slug = post.get('slug')
@@ -134,13 +133,13 @@ def push_post(post, content, publish_date, config, logger):
     if missing_fields:
         logger.write(f"⚠️ Skipping post due to missing fields: {slug or '[UNKNOWN SLUG]'} → {missing_fields}\n")
         print(f"⚠️ Skipping {slug} → Missing fields: {missing_fields}")
-        skip_count += 1
+        results['skipped'] += 1
         return
 
     if post_exists(slug, config):
         logger.write(f"⚠️ Skipping duplicate: {slug}\n")
         print(f"⚠️ Duplicate skipped: {slug}")
-        dupe_count += 1
+        results['duplicates'] += 1
         return
 
     media_id = upload_featured_image(image_url, config, logger)
@@ -166,17 +165,14 @@ def push_post(post, content, publish_date, config, logger):
     if response.status_code == 201:
         logger.write(f"✅ Scheduled: {title} → {publish_date}\n")
         print(f"✅ Scheduled: {title} → {publish_date}")
-        success_count += 1
+        results['success'] += 1
     else:
         logger.write(f"❌ Failed to schedule: {title}\n{response.json()}\n")
         print(f"❌ Failed to schedule: {title}")
-        error_count += 1
+        results['errors'] += 1
 
 def batch_schedule_posts():
-    success_count = 0
-    skip_count = 0
-    error_count = 0
-    dupe_count = 0
+    results = {'success': 0, 'skipped': 0, 'errors': 0, 'duplicates': 0}
     config = load_config()
     with open('post_pusher.log', 'a', encoding='utf-8') as logger:
         start_time = datetime.now().isoformat()
@@ -193,7 +189,7 @@ def batch_schedule_posts():
 
                 content = load_post_content(html_path)
                 publish_date = get_publish_date(i)
-                push_post(post, content, publish_date, config, logger)
+                push_post(post, content, publish_date, config, logger, results)
             except Exception as e:
                 logger.write(f"🔥 Fatal error posting: {post.get('slug', '[UNKNOWN]')}\n{e}\n")
                 print(f"🔥 Fatal error posting: {post.get('slug', '[UNKNOWN]')}")
@@ -201,7 +197,7 @@ def batch_schedule_posts():
         finish_time = datetime.now().isoformat()
         logger.write(f"✅ Run completed: {finish_time}\n")
         print(f"✅ Run completed: {finish_time}")
-        print(f"✔️ Summary: Success={success_count}, Skipped={skip_count}, Duplicates={dupe_count}, Errors={error_count}")
+        print(f"✔️ Summary: Success={results['success']}, Skipped={results['skipped']}, Duplicates={results['duplicates']}, Errors={results['errors']}")
 
 if __name__ == '__main__':
     batch_schedule_posts()
