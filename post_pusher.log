@@ -19,3 +19,29 @@
 ⚠️ Skipping post due to missing fields: mortgage-pre-approval-plymouth-mi → ['focus_keyword', 'rank_math_description']
 ✅ Run completed: 2025-04-13T17:27:46.907659
 
+🚀 Run started: 2025-04-13T17:31:22.337511
+⚠️ Skipping post due to missing fields: fha-loan-plymouth-mi → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: fha-loan-plymouth-mi
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: va-mortgage-ann-arbor-mi → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: va-mortgage-ann-arbor-mi
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: usda-mortgage-plymouth-mi → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: usda-mortgage-plymouth-mi
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: adjustable-rate-mortgage-michigan → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: adjustable-rate-mortgage-michigan
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: first-time-home-buyer-michigan → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: first-time-home-buyer-michigan
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: refinance-mortgage-plymouth-mi → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: refinance-mortgage-plymouth-mi
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: conventional-vs-fha-loans-michigan → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: conventional-vs-fha-loans-michigan
+name 'skip_count' is not defined
+⚠️ Skipping post due to missing fields: mortgage-pre-approval-plymouth-mi → ['focus_keyword', 'rank_math_description']
+🔥 Fatal error posting: mortgage-pre-approval-plymouth-mi
+name 'skip_count' is not defined
+✅ Run completed: 2025-04-13T17:31:22.344763
