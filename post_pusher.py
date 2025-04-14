@@ -28,60 +28,44 @@ import mimetypes
 
 posts = [
     {
-        "title": "How to Qualify for an FHA Loan in Plymouth, MI",
         "slug": "fha-loan-plymouth-mi",
-        "focus_keyword": "fha loan plymouth mi",
-        "rank_math_description": "Explore FHA loan benefits and qualification steps for Plymouth, MI homebuyers. Low down payments and flexible credit make FHA loans a top choice.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/impact_of_past_economies-jpg.webp"
+        "title": "How to Qualify for an FHA Loan in Plymouth, MI",
+        "description": "Explore FHA loan benefits and qualification steps for Plymouth, MI homebuyers. Low down payments and flexible credit make FHA loans a top choice."
     },
     {
-        "title": "Why VA Home Loans Are a Smart Choice in Ann Arbor, MI",
         "slug": "va-mortgage-ann-arbor-mi",
-        "focus_keyword": "va mortgage lender ann arbor mi",
-        "rank_math_description": "Veterans and active-duty service members in Ann Arbor: Learn how VA loans offer zero down, no PMI, and better rates for your home purchase.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/impact_of_historical_loan_rates-jpg.webp"
+        "title": "Why VA Home Loans Are a Smart Choice in Ann Arbor, MI",
+        "description": "Veterans and active-duty service members in Ann Arbor: Learn how VA loans offer zero down, no PMI, and better rates for your home purchase."
     },
     {
-        "title": "USDA Mortgage Loans in Plymouth, MI: Zero Down, Big Opportunity",
         "slug": "usda-mortgage-plymouth-mi",
-        "focus_keyword": "usda mortgage plymouth mi",
-        "rank_math_description": "Live in a rural area near Plymouth, MI? Discover how USDA mortgage loans let you buy with zero down and low interest rates.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/analyzing_home_loan_trends-jpg.webp"
+        "title": "USDA Mortgage Loans in Plymouth, MI: Zero Down, Big Opportunity",
+        "description": "Live in a rural area near Plymouth, MI? Discover how USDA mortgage loans let you buy with zero down and low interest rates."
     },
     {
-        "title": "What You Need to Know About Adjustable Rate Mortgages in Michigan",
         "slug": "adjustable-rate-mortgage-michigan",
-        "focus_keyword": "adjustable rate mortgage michigan",
-        "rank_math_description": "Explore how adjustable-rate mortgages (ARMs) work in Michigan, their pros and cons, and if they're right for your financial plan.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/interest_rates_since_2000-jpg.webp"
+        "title": "What You Need to Know About Adjustable Rate Mortgages in Michigan",
+        "description": "Explore how adjustable-rate mortgages (ARMs) work in Michigan, their pros and cons, and if they're right for your financial plan."
     },
     {
-        "title": "First-Time Homebuyer Programs in Michigan: What You Need to Know",
         "slug": "first-time-home-buyer-michigan",
-        "focus_keyword": "first time home buyer michigan",
-        "rank_math_description": "New to home buying in Michigan? Discover the best first-time buyer programs, grants, and loan options available right now.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/historical_mortgage_rate_trends-jpg.webp"
+        "title": "First-Time Homebuyer Programs in Michigan: What You Need to Know",
+        "description": "New to home buying in Michigan? Discover the best first-time buyer programs, grants, and loan options available right now."
     },
     {
-        "title": "Refinancing Your Home in Plymouth, MI: Smart Moves in a Shifting Market",
         "slug": "refinance-mortgage-plymouth-mi",
-        "focus_keyword": "refinance mortgage rates plymouth mi",
-        "rank_math_description": "Thinking of refinancing in Plymouth, MI? Compare rates, explore your options, and decide if now is the right time to refinance your mortgage.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/tracking_mortgage_rate_trends-jpg.webp"
+        "title": "Refinancing Your Home in Plymouth, MI: Smart Moves in a Shifting Market",
+        "description": "Thinking of refinancing in Plymouth, MI? Compare rates, explore your options, and decide if now is the right time to refinance your mortgage."
     },
     {
-        "title": "Conventional vs FHA Loans in Michigan: Which One Wins?",
         "slug": "conventional-vs-fha-loans-michigan",
-        "focus_keyword": "conventional mortgage vs fha michigan",
-        "rank_math_description": "Weighing FHA vs conventional in Michigan? This guide compares credit, down payment, and qualification differences to help you choose.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/decade_long_mortgage_rate_analysis-1-jpg.webp"
+        "title": "Conventional vs FHA Loans in Michigan: Which One Wins?",
+        "description": "Weighing FHA vs conventional in Michigan? This guide compares credit, down payment, and qualification differences to help you choose."
     },
     {
-        "title": "Getting Pre-Approved for a Mortgage in Plymouth, MI: What to Expect",
         "slug": "mortgage-pre-approval-plymouth-mi",
-        "focus_keyword": "mortgage pre approval plymouth mi",
-        "rank_math_description": "Learn how to get pre-approved for a mortgage in Plymouth, MI. Understand the documents, process, and how to increase your chances.",
-        "featured_image_url": "https://trevoraspiranti.com/wp-content/uploads/mortgage_rate_trends_analysis-jpg.webp"
+        "title": "Getting Pre-Approved for a Mortgage in Plymouth, MI: What to Expect",
+        "description": "Learn how to get pre-approved for a mortgage in Plymouth, MI. Understand the documents, process, and how to increase your chances."
     }
 ]
 
@@ -138,6 +122,7 @@ def get_publish_date(weeks_ahead=0):
 
 def push_post(post, content, publish_date, config, logger):
     global success_count, skip_count, error_count, dupe_count
+    global success_count, skip_count, error_count, dupe_count
 
     slug = post.get('slug')
     title = post.get('title')
@@ -188,6 +173,10 @@ def push_post(post, content, publish_date, config, logger):
         error_count += 1
 
 def batch_schedule_posts():
+    success_count = 0
+    skip_count = 0
+    error_count = 0
+    dupe_count = 0
     config = load_config()
     with open('post_pusher.log', 'a', encoding='utf-8') as logger:
         start_time = datetime.now().isoformat()
