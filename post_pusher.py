@@ -96,12 +96,15 @@ def upload_featured_image(image_url, config, logger):
         if response.status_code in [200, 201]:
             media_id = response.json().get('id')
             logger.write(f"✅ Uploaded {image_name} → Media ID: {media_id}\n")
+            print(f"✅ Image uploaded: {image_name} → Media ID: {media_id}")
             return media_id
         else:
             logger.write(f"❌ Failed to upload image: {image_name}\n{response.json()}\n")
+            print(f"❌ Failed to upload image: {image_name}")
             return None
     except Exception as e:
         logger.write(f"🔥 Exception uploading image: {image_url}\n{e}\n")
+        print(f"🔥 Exception uploading image: {image_url}")
         return None
 
 def post_exists(slug, config):
@@ -118,6 +121,8 @@ def get_publish_date(weeks_ahead=0):
     return publish_date.replace(hour=8, minute=0, second=0, microsecond=0).isoformat()
 
 def push_post(post, content, publish_date, config, logger):
+    global success_count, skip_count, error_count, dupe_count
+
     slug = post.get('slug')
     title = post.get('title')
     focus_keyword = post.get('focus_keyword')
@@ -127,10 +132,14 @@ def push_post(post, content, publish_date, config, logger):
     missing_fields = [key for key in ['slug', 'title', 'focus_keyword', 'rank_math_description'] if key not in post]
     if missing_fields:
         logger.write(f"⚠️ Skipping post due to missing fields: {slug or '[UNKNOWN SLUG]'} → {missing_fields}\n")
+        print(f"⚠️ Skipping {slug} → Missing fields: {missing_fields}")
+        skip_count += 1
         return
 
     if post_exists(slug, config):
         logger.write(f"⚠️ Skipping duplicate: {slug}\n")
+        print(f"⚠️ Duplicate skipped: {slug}")
+        dupe_count += 1
         return
 
     media_id = upload_featured_image(image_url, config, logger)
@@ -155,19 +164,26 @@ def push_post(post, content, publish_date, config, logger):
 
     if response.status_code == 201:
         logger.write(f"✅ Scheduled: {title} → {publish_date}\n")
+        print(f"✅ Scheduled: {title} → {publish_date}")
+        success_count += 1
     else:
         logger.write(f"❌ Failed to schedule: {title}\n{response.json()}\n")
+        print(f"❌ Failed to schedule: {title}")
+        error_count += 1
 
 def batch_schedule_posts():
     config = load_config()
     with open('post_pusher.log', 'a', encoding='utf-8') as logger:
-        logger.write(f"🚀 Run started: {datetime.now().isoformat()}\n")
+        start_time = datetime.now().isoformat()
+        logger.write(f"🚀 Run started: {start_time}\n")
+        print(f"🚀 Run started: {start_time}")
 
         for i, post in enumerate(posts):
             try:
                 html_path = os.path.join('content', f"{post.get('slug', f'post_{i}')}.html")
                 if not os.path.exists(html_path):
                     logger.write(f"❌ Missing HTML: {html_path} → Skipping\n")
+                    print(f"❌ Missing file: {html_path}")
                     continue
 
                 content = load_post_content(html_path)
@@ -175,8 +191,12 @@ def batch_schedule_posts():
                 push_post(post, content, publish_date, config, logger)
             except Exception as e:
                 logger.write(f"🔥 Fatal error posting: {post.get('slug', '[UNKNOWN]')}\n{e}\n")
+                print(f"🔥 Fatal error posting: {post.get('slug', '[UNKNOWN]')}")
 
-        logger.write(f"✅ Run completed: {datetime.now().isoformat()}\n\n")
+        finish_time = datetime.now().isoformat()
+        logger.write(f"✅ Run completed: {finish_time}\n")
+        print(f"✅ Run completed: {finish_time}")
+        print(f"✔️ Summary: Success={success_count}, Skipped={skip_count}, Duplicates={dupe_count}, Errors={error_count}")
 
 if __name__ == '__main__':
     batch_schedule_posts()
