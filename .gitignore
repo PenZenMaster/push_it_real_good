@@ -28,3 +28,6 @@ Thumbs.db
 
 # log files
 *.log
+
+# No package Install files
+venv/
