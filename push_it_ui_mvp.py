@@ -12,7 +12,7 @@ Created Date: 2025-04-15
 Last Modified Date: 2025-04-15
 
 Comments:
-- v0.90 Initial MVP UI for Push It Real Good
+- v0.91 Added automatic client folder + pre-post/posted subdir creation on config save
 """
 
 import sys
@@ -39,7 +39,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QTime
 
 CONFIG_DIR = "configs"
+CONTENT_ROOT = "content"
 os.makedirs(CONFIG_DIR, exist_ok=True)
+os.makedirs(CONTENT_ROOT, exist_ok=True)
 
 
 class PushItUI(QWidget):
@@ -158,6 +160,13 @@ class PushItUI(QWidget):
             QMessageBox.warning(self, "Missing Name", "Please enter a config name.")
             return
 
+        client_folder = os.path.join(CONTENT_ROOT, name)
+        pre_post = os.path.join(client_folder, "pre-post")
+        posted = os.path.join(client_folder, "posted")
+
+        os.makedirs(pre_post, exist_ok=True)
+        os.makedirs(posted, exist_ok=True)
+
         data = {
             "wp_url": self.wp_url_input.text(),
             "username": self.username_input.text(),
@@ -168,7 +177,7 @@ class PushItUI(QWidget):
                 if cid.strip().isdigit()
             ],
             "featured_image_url": self.featured_image_input.text(),
-            "content_dir": self.content_folder_input.text(),
+            "content_dir": client_folder,
             "post_status": self.status_selector.currentText(),
             "schedule_day": self.schedule_day_selector.currentText(),
             "schedule_time": self.schedule_time_input.time().toString("HH:mm"),
