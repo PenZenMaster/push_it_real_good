@@ -188,24 +188,35 @@ class PushItUI(QMainWindow):
         parent_layout.addLayout(form)
 
     def show_help_dialog(self):
-        """Display Skippy help image in a popup dialog."""
+        """Display Skippy help image in a popup dialog, trying both root and /images paths."""
+        script_dir = os.path.dirname(__file__)
+        # Try both locations
+        candidates = [
+            os.path.join(script_dir, "a82ae152-5072-424e-a6cd-3f578d28dada.png"),
+            os.path.join(script_dir, "images", "skippy_help.png"),
+        ]
+        img_path = next((p for p in candidates if os.path.isfile(p)), None)
+        if not img_path:
+            # Fallback: let user pick one
+            img_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Skippy Image",
+                script_dir,
+                "PNG Images (*.png);;All Files (*)",
+            )
+            if not img_path:
+                return
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Skippy Says")
         dlg_layout = QVBoxLayout(dialog)
-        # Determine image path
-        script_dir = os.path.dirname(__file__)
-        img_path = os.path.join(script_dir, "a82ae152-5072-424e-a6cd-3f578d28dada.png")
-        if not os.path.isfile(img_path):
-            QMessageBox.warning(
-                self, "Image Not Found", f"Help image not found at {img_path}"
-            )
-            return
         pix = QPixmap(img_path)
-        img_label = QLabel(dialog)
-        img_label.setPixmap(pix)
-        dlg_layout.addWidget(img_label)
-        close_btn = QPushButton("Stupid Monkey!", clicked=dialog.accept)
-        dlg_layout.addWidget(close_btn)
+        if pix.isNull():
+            QMessageBox.warning(self, "Invalid Image", f"Cannot load image: {img_path}")
+            return
+        lbl = QLabel(dialog)
+        lbl.setPixmap(pix)
+        dlg_layout.addWidget(lbl)
+        dlg_layout.addWidget(QPushButton("Stupid Monkey!", clicked=dialog.accept))
         dialog.exec()
 
     def load_config_list(self):
