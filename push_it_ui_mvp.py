@@ -37,6 +37,8 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 from PyQt6.QtCore import QTime
+from image_drop_widget import ImageDropWidget
+
 
 CONFIG_DIR = "configs"
 CONTENT_ROOT = "content"

@@ -3,8 +3,7 @@
 Module/Script Name: post_pusher.py
 
 Description:
-Push It Real Good blog publisher — now upgraded to support client-specific folders,
-scheduled posts, and automatic post-to-posted transfer on success.
+Push It Real Good blog publisher — handles client folders, scheduled posts, and featured image uploads (now with proper Content-Type).
 
 Author(s):
 Skippy the Magnificent with an eensy weensy bit of help from that filthy monkey, Big G
@@ -13,26 +12,27 @@ Created Date: 2025-04-15
 Last Modified Date: 2025-04-15
 
 Comments:
-- v1.05 Reads config path, processes HTML in pre-post/, moves to posted/ on success
+- v1.07 Fixed featured image upload using multipart/form-data with Content-Type
 """
 
 import os
 import json
 import argparse
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from bs4 import BeautifulSoup
+import mimetypes
 
 def get_schedule_timestamp(day_name, time_str):
     day_map = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today_index = now.weekday()
     target_index = day_map.index(day_name)
     days_ahead = (target_index - today_index + 7) % 7
     schedule_date = now + timedelta(days=days_ahead)
     hour, minute = map(int, time_str.split(':'))
-    return datetime(schedule_date.year, schedule_date.month, schedule_date.day, hour, minute)
+    return datetime(schedule_date.year, schedule_date.month, schedule_date.day, hour, minute, tzinfo=timezone.utc)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', required=True, help='Path to the config JSON file')
@@ -87,14 +87,27 @@ for html_file in pre_post_dir.glob("*.html"):
     try:
         media_url = post_meta.get("featured_image_url") or config.get("featured_image_url")
         if media_url:
-            media_resp = requests.post(
-                f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media",
-                headers={"Content-Disposition": f"attachment; filename={slug}.jpg"},
-                data=requests.get(media_url).content,
-                auth=(config["username"], config["app_password"])
-            )
-            if media_resp.ok:
-                data["featured_media"] = media_resp.json().get("id")
+            try:
+                img_resp = requests.get(media_url)
+                if img_resp.status_code == 200:
+                    content_type, _ = mimetypes.guess_type(media_url)
+                    files = {
+                        "file": (f"{slug}.jpg", img_resp.content, content_type or "image/jpeg")
+                    }
+                    media_post = requests.post(
+                        f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media",
+                        auth=(config["username"], config["app_password"]),
+                        files=files
+                    )
+                    if media_post.ok:
+                        data["featured_media"] = media_post.json().get("id")
+                        print(f"🖼️ Uploaded featured image for {slug}")
+                    else:
+                        print(f"⚠️ Failed to upload featured image for {slug}: {media_post.status_code} {media_post.text}")
+                else:
+                    print(f"⚠️ Failed to fetch image from {media_url}: {img_resp.status_code}")
+            except Exception as img_ex:
+                print(f"❌ Exception uploading image for {slug}: {str(img_ex)}")
 
         resp = requests.post(
             f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/posts",

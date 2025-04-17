@@ -6,8 +6,8 @@
     20
   ],
   "featured_image_url": "https://clearlakebeeremoval.com/wp-content/uploads/2020/08/clear-lake-bee-removal-diy-bee-removal-2_orig.jpg",
-  "content_dir": "",
-  "post_status": "draft",
+  "content_dir": "content\\Clear Lake Bee Removal",
+  "post_status": "schedule",
   "schedule_day": "Monday",
-  "schedule_time": "14:00"
+  "schedule_time": "06:00"
 }
