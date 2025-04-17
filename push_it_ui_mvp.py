@@ -13,16 +13,27 @@ Created Date: 2025-04-15
 Last Modified Date: 2025-04-18
 
 Comments:
-- v0.94 Ready to Zip and Ship: improved category dropdown readability
+- v0.95 Ready to Zip and Ship: fixed truncation bug in select_category, refined UI
 """
+
 import sys
 import os
 import json
 import requests
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QFormLayout, QLineEdit,
-    QPushButton, QComboBox, QMessageBox, QLabel, QHBoxLayout,
-    QTimeEdit, QProgressBar, QSizePolicy
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QFormLayout,
+    QLineEdit,
+    QPushButton,
+    QComboBox,
+    QMessageBox,
+    QLabel,
+    QHBoxLayout,
+    QTimeEdit,
+    QProgressBar,
+    QSizePolicy,
 )
 from PyQt6.QtCore import QTime, QProcess
 from image_drop_widget import ImageDropWidget
@@ -31,6 +42,7 @@ CONFIG_DIR = "configs"
 CONTENT_ROOT = "content"
 for d in (CONFIG_DIR, CONTENT_ROOT):
     os.makedirs(d, exist_ok=True)
+
 
 class PushItUI(QWidget):
     def __init__(self):
@@ -51,14 +63,21 @@ class PushItUI(QWidget):
 
         # Category management
         self.category_ids_input = QLineEdit()
-        self.fetch_button = QPushButton("Fetch Categories", clicked=self.fetch_categories)
+        self.fetch_button = QPushButton(
+            "Fetch Categories", clicked=self.fetch_categories
+        )
         self.category_selector = QComboBox()
-        # Make combo expand to fit full category names
-        self.category_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.category_selector.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.category_selector.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToContents
+        )
+        self.category_selector.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.category_selector.currentIndexChanged.connect(self.select_category)
         self.new_category_input = QLineEdit()
-        self.add_category_button = QPushButton("Add Category", clicked=self.add_category)
+        self.add_category_button = QPushButton(
+            "Add Category", clicked=self.add_category
+        )
 
         # Featured image & content
         self.featured_image_input = QLineEdit()
@@ -69,10 +88,17 @@ class PushItUI(QWidget):
         self.status_selector.addItems(["draft", "publish", "schedule"])
         self.status_selector.currentTextChanged.connect(self.toggle_schedule_fields)
         self.schedule_day_selector = QComboBox()
-        self.schedule_day_selector.addItems([
-            "Monday","Tuesday","Wednesday","Thursday",
-            "Friday","Saturday","Sunday",
-        ])
+        self.schedule_day_selector.addItems(
+            [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
+        )
         self.schedule_time_input = QTimeEdit(QTime(14, 0))
         self.schedule_day_selector.setEnabled(False)
         self.schedule_time_input.setEnabled(False)
@@ -85,7 +111,9 @@ class PushItUI(QWidget):
 
         # Action buttons
         self.save_button = QPushButton("💾 Save Config", clicked=self.save_config)
-        self.test_button = QPushButton("🧪 Test Connection", clicked=self.test_connection)
+        self.test_button = QPushButton(
+            "🧪 Test Connection", clicked=self.test_connection
+        )
         self.run_button = QPushButton("🚀 Run post_pusher.py", clicked=self.run_script)
 
         # Progress bar & process
@@ -155,7 +183,11 @@ class PushItUI(QWidget):
 
     def load_config_list(self) -> None:
         self.config_selector.clear()
-        profiles = [f.removesuffix('.json') for f in os.listdir(CONFIG_DIR) if f.endswith('.json')]
+        profiles = [
+            f.removesuffix(".json")
+            for f in os.listdir(CONFIG_DIR)
+            if f.endswith(".json")
+        ]
         self.config_selector.addItems(["-- Select --"] + profiles)
 
     def load_config(self, name: str) -> None:
@@ -163,21 +195,23 @@ class PushItUI(QWidget):
             return
         path = os.path.join(CONFIG_DIR, f"{name}.json")
         if os.path.isfile(path):
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 data = json.load(f)
             self.config_name_input.setText(name)
-            self.wp_url_input.setText(data.get('wp_url', ''))
-            self.username_input.setText(data.get('username', ''))
-            self.password_input.setText(data.get('app_password', ''))
+            self.wp_url_input.setText(data.get("wp_url", ""))
+            self.username_input.setText(data.get("username", ""))
+            self.password_input.setText(data.get("app_password", ""))
             self.category_ids_input.setText(
-                ",".join(map(str, data.get('category_ids', [])))
+                ",".join(map(str, data.get("category_ids", [])))
             )
-            self.featured_image_input.setText(data.get('featured_image_url', ''))
-            self.content_folder_input.setText(data.get('content_dir', ''))
-            self.status_selector.setCurrentText(data.get('post_status', 'draft'))
-            self.schedule_day_selector.setCurrentText(data.get('schedule_day', 'Monday'))
+            self.featured_image_input.setText(data.get("featured_image_url", ""))
+            self.content_folder_input.setText(data.get("content_dir", ""))
+            self.status_selector.setCurrentText(data.get("post_status", "draft"))
+            self.schedule_day_selector.setCurrentText(
+                data.get("schedule_day", "Monday")
+            )
             self.schedule_time_input.setTime(
-                QTime.fromString(data.get('schedule_time', '14:00'), 'HH:mm')
+                QTime.fromString(data.get("schedule_time", "14:00"), "HH:mm")
             )
 
     def fetch_categories(self) -> None:
@@ -185,14 +219,15 @@ class PushItUI(QWidget):
         try:
             url = f"{self.wp_url_input.text().rstrip('/')}/wp-json/wp/v2/categories"
             resp = requests.get(
-                url,
-                auth=(self.username_input.text(), self.password_input.text())
+                url, auth=(self.username_input.text(), self.password_input.text())
             )
             resp.raise_for_status()
             cats = resp.json()
             self.category_selector.clear()
             for cat in cats:
-                self.category_selector.addItem(f"{cat['name']} ({cat['id']})", cat['id'])
+                self.category_selector.addItem(
+                    f"{cat['name']} ({cat['id']})", cat["id"]
+                )
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to fetch categories: {e}")
 
@@ -201,7 +236,121 @@ class PushItUI(QWidget):
         if index < 0:
             return
         cat_id = self.category_selector.itemData(index)
-        existing = {cid.strip() for cid in self.category_ids_input.text().split(',') if cid.strip()}
+        existing = {
+            cid.strip()
+            for cid in self.category_ids_input.text().split(",")
+            if cid.strip()
+        }
         if str(cat_id) not in existing:
             existing.add(str(cat_id))
-            self.category_ids_input.setText(\
+            self.category_ids_input.setText(",".join(sorted(existing)))
+
+    def add_category(self) -> None:
+        """Create a new WP category via REST API."""
+        name = self.new_category_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Missing Name", "Enter a category name.")
+            return
+        try:
+            url = f"{self.wp_url_input.text().rstrip('/')}/wp-json/wp/v2/categories"
+            resp = requests.post(
+                url,
+                auth=(self.username_input.text(), self.password_input.text()),
+                json={"name": name},
+            )
+            resp.raise_for_status()
+            cat = resp.json()
+            QMessageBox.information(
+                self, "Created", f"Category '{cat['name']}' ID {cat['id']}"
+            )
+            self.new_category_input.clear()
+            self.fetch_categories()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to create category: {e}")
+
+    def save_config(self) -> None:
+        name = self.config_name_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Missing Name", "Please enter a config name.")
+            return
+        client_dir = os.path.join(CONTENT_ROOT, name)
+        os.makedirs(os.path.join(client_dir, "pre-post"), exist_ok=True)
+        os.makedirs(os.path.join(client_dir, "posted"), exist_ok=True)
+        cfg = {
+            "wp_url": self.wp_url_input.text(),
+            "username": self.username_input.text(),
+            "app_password": self.password_input.text(),
+            "category_ids": [
+                int(cid)
+                for cid in self.category_ids_input.text().split(",")
+                if cid.isdigit()
+            ],
+            "featured_image_url": self.featured_image_input.text(),
+            "content_dir": client_dir,
+            "post_status": self.status_selector.currentText(),
+            "schedule_day": self.schedule_day_selector.currentText(),
+            "schedule_time": self.schedule_time_input.time().toString("HH:mm"),
+        }
+        with open(os.path.join(CONFIG_DIR, f"{name}.json"), "w") as f:
+            json.dump(cfg, f, indent=2)
+        self.load_config_list()
+        QMessageBox.information(self, "Saved", f"Configuration '{name}' saved.")
+
+    def test_connection(self) -> None:
+        try:
+            url = f"{self.wp_url_input.text().rstrip('/')}/wp-json/wp/v2/users/me"
+            resp = requests.get(
+                url, auth=(self.username_input.text(), self.password_input.text())
+            )
+            if resp.status_code == 200:
+                self.status_label.setText(
+                    "✅ Connected: " + resp.json().get("name", "OK")
+                )
+            else:
+                self.status_label.setText(f"❌ Failed: {resp.status_code}")
+        except Exception as e:
+            self.status_label.setText(f"❌ Error: {e}")
+
+    def toggle_schedule_fields(self, text: str) -> None:
+        enable = text == "schedule"
+        self.schedule_day_selector.setEnabled(enable)
+        self.schedule_time_input.setEnabled(enable)
+
+    def handle_images_dropped(self, paths: list[str]) -> None:
+        if paths:
+            self.featured_image_input.setText(paths[0])
+
+    def run_script(self) -> None:
+        profile = self.config_selector.currentText()
+        if profile == "-- Select --":
+            QMessageBox.warning(self, "No Profile", "Please select a profile first.")
+            return
+        cfg_path = os.path.join(CONFIG_DIR, f"{profile}.json")
+        self.progress_bar.setRange(0, 0)
+        self.run_button.setEnabled(False)
+        self.process.start(sys.executable, ["post_pusher.py", "--config", cfg_path])
+
+    def handle_stdout(self) -> None:
+        data = bytes(self.process.readAllStandardOutput()).decode("utf-8")
+        print(data, end="")
+
+    def handle_stderr(self) -> None:
+        data = bytes(self.process.readAllStandardError()).decode("utf-8")
+        print(data, end="")
+
+    def process_finished(
+        self, exit_code: int, exit_status: QProcess.ExitStatus
+    ) -> None:
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        self.run_button.setEnabled(True)
+        QMessageBox.information(
+            self, "Done", f"Process finished with code {exit_code}."
+        )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = PushItUI()
+    window.show()
+    sys.exit(app.exec())
