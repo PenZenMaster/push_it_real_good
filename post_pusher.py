@@ -1,130 +1,141 @@
-
 """
 Module/Script Name: post_pusher.py
 
 Description:
-Push It Real Good blog publisher — handles client folders, scheduled posts, and featured image uploads (now with proper Content-Type).
+Handles automated WordPress blog publishing: reads HTML files, uploads featured images,
+creates or schedules posts via the WP REST API, and moves processed files.
 
 Author(s):
 Skippy the Magnificent with an eensy weensy bit of help from that filthy monkey, Big G
 
-Created Date: 2025-04-15
-Last Modified Date: 2025-04-15
+Created Date: 2025-04-14
+Last Modified Date: 2025-04-16
 
 Comments:
-- v1.07 Fixed featured image upload using multipart/form-data with Content-Type
+- v1.05 Ready to Zip and Ship: added logging and robust error handling
 """
 
-import os
-import json
 import argparse
+import json
+import os
 import requests
-from datetime import datetime, timedelta, timezone
+import logging
+from datetime import datetime, timedelta
 from pathlib import Path
-from bs4 import BeautifulSoup
-import mimetypes
+from requests.exceptions import HTTPError, RequestException
 
-def get_schedule_timestamp(day_name, time_str):
-    day_map = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    now = datetime.now(timezone.utc)
-    today_index = now.weekday()
-    target_index = day_map.index(day_name)
-    days_ahead = (target_index - today_index + 7) % 7
-    schedule_date = now + timedelta(days=days_ahead)
-    hour, minute = map(int, time_str.split(':'))
-    return datetime(schedule_date.year, schedule_date.month, schedule_date.day, hour, minute, tzinfo=timezone.utc)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--config', required=True, help='Path to the config JSON file')
-args = parser.parse_args()
 
-# Load config
-with open(args.config) as f:
-    config = json.load(f)
+def get_schedule_timestamp(day_name: str, time_str: str) -> int:
+    """Return a UNIX timestamp for the next occurrence of day_name at time_str (HH:MM)"""
+    today = datetime.now()
+    target_time = datetime.strptime(time_str, "%H:%M").time()
+    days_ahead = (list(calendar.day_name).index(day_name) - today.weekday() + 7) % 7
+    if days_ahead == 0 and today.time() >= target_time:
+        days_ahead = 7
+    target = datetime.combine(today.date(), target_time) + timedelta(days=days_ahead)
+    return int(target.timestamp())
 
-content_dir = config['content_dir']
-pre_post_dir = Path(content_dir) / 'pre-post'
-posted_dir = Path(content_dir) / 'posted'
-posts_json = Path(content_dir) / 'posts.json'
 
-if not posts_json.exists():
-    print(f"❌ Missing posts.json in {content_dir}")
-    exit(1)
+def publish_file(file_path: Path, config: dict):
+    """Process a single HTML file: upload image, post or schedule on WP, and move file."""
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except OSError as e:
+        logger.error("I/O error reading '%s': %s", file_path, e)
+        return
 
-with open(posts_json, 'r') as f:
-    posts = {p['slug']: p for p in json.load(f)}
+    # Featured image upload
+    img_url = config.get("featured_image_url")
+    if img_url and img_url.startswith("file://"):
+        local_path = img_url.replace("file://", "")
+        try:
+            with open(local_path, "rb") as img_file:
+                files = {"file": img_file}
+                resp = requests.post(
+                    f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media",
+                    auth=(config["username"], config["app_password"]),
+                    files=files,
+                )
+                resp.raise_for_status()
+                img_id = resp.json().get("id")
+                logger.info("Uploaded featured image '%s' → ID %s", local_path, img_id)
+        except (OSError, HTTPError) as e:
+            logger.error("Failed to upload image '%s': %s", local_path, e)
+            img_id = None
+    else:
+        img_id = None
 
-success, skipped, errors = 0, 0, 0
-
-for html_file in pre_post_dir.glob("*.html"):
-    slug = html_file.stem
-    if slug not in posts:
-        print(f"⚠️ Skipping {slug} — no entry in posts.json")
-        skipped += 1
-        continue
-
-    post_meta = posts[slug]
-    with open(html_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    data = {
-        "title": post_meta['title'],
-        "slug": slug,
+    # Build post payload
+    payload = {
+        "title": file_path.stem.replace("-", " ").title(),
         "content": content,
         "status": config.get("post_status", "draft"),
-        "categories": config.get("category_ids", []),
-        "meta": {
-            "rank_math_description": post_meta.get("rank_math_description", ""),
-            "rank_math_focus_keyword": post_meta.get("focus_keyword", "")
-        }
     }
+    if img_id:
+        payload["featured_media"] = img_id
 
-    if config["post_status"] == "schedule":
-        schedule_time = get_schedule_timestamp(config["schedule_day"], config["schedule_time"])
-        data["date_gmt"] = schedule_time.isoformat()
-        data["status"] = "future"
+    # Schedule if needed
+    if config.get("post_status") == "schedule":
+        ts = get_schedule_timestamp(
+            config.get("schedule_day", "Monday"), config.get("schedule_time", "00:00")
+        )
+        payload["date"] = datetime.fromtimestamp(ts).isoformat()
+        logger.info("Scheduling post '%s' for %s", payload["title"], payload["date"])
 
+    # Create or update post
     try:
-        media_url = post_meta.get("featured_image_url") or config.get("featured_image_url")
-        if media_url:
-            try:
-                img_resp = requests.get(media_url)
-                if img_resp.status_code == 200:
-                    content_type, _ = mimetypes.guess_type(media_url)
-                    files = {
-                        "file": (f"{slug}.jpg", img_resp.content, content_type or "image/jpeg")
-                    }
-                    media_post = requests.post(
-                        f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media",
-                        auth=(config["username"], config["app_password"]),
-                        files=files
-                    )
-                    if media_post.ok:
-                        data["featured_media"] = media_post.json().get("id")
-                        print(f"🖼️ Uploaded featured image for {slug}")
-                    else:
-                        print(f"⚠️ Failed to upload featured image for {slug}: {media_post.status_code} {media_post.text}")
-                else:
-                    print(f"⚠️ Failed to fetch image from {media_url}: {img_resp.status_code}")
-            except Exception as img_ex:
-                print(f"❌ Exception uploading image for {slug}: {str(img_ex)}")
-
         resp = requests.post(
             f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/posts",
             auth=(config["username"], config["app_password"]),
-            json=data
+            json=payload,
         )
+        resp.raise_for_status()
+        post_id = resp.json().get("id")
+        logger.info("Posted '%s' → Post ID %s", payload["title"], post_id)
+    except HTTPError as e:
+        logger.error("HTTP error posting '%s': %s", payload["title"], e)
+    except RequestException as e:
+        logger.error("Request exception for '%s': %s", payload["title"], e)
 
-        if resp.status_code == 201:
-            print(f"✅ Posted: {slug}")
-            html_file.rename(posted_dir / html_file.name)
-            success += 1
-        else:
-            print(f"❌ Error posting {slug}: {resp.status_code} {resp.text}")
-            errors += 1
+    # Move file to posted folder
+    try:
+        dest = file_path.parent.parent / "posted" / file_path.name
+        file_path.replace(dest)
+        logger.info("Moved '%s' → '%s'", file_path.name, dest)
+    except OSError as e:
+        logger.error("Error moving '%s' to posted: %s", file_path.name, e)
 
-    except Exception as e:
-        print(f"❌ Exception for {slug}: {str(e)}")
-        errors += 1
 
-print(f"✅ Success: {success} | ⚠️ Skipped: {skipped} | ❌ Errors: {errors}")
+def load_config(config_path: str) -> dict:
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("Configuration file not found: %s", config_path)
+        raise
+    except json.JSONDecodeError as e:
+        logger.error("Invalid JSON in config file: %s", e)
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Publish posts to WordPress")
+    parser.add_argument("--config", required=True, help="Path to JSON config file")
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    source = Path(config["content_dir"]) / "pre-post"
+    for html_file in source.glob("*.html"):
+        publish_file(html_file, config)
+
+
+if __name__ == "__main__":
+    main()
