@@ -4,7 +4,7 @@ Module/Script Name: push_it_ui_mvp.py
 Description:
 PyQt6 GUI for the 'Push It Real Good' WordPress blog publishing tool.
 Allows configuration input, save/load profiles, WordPress credential testing,
-featured-image drag&drop, category management, scheduling, live progress display,
+featured-image drag\&drop, category management, scheduling, live progress display,
 and a Help menu with an image popup.
 
 Author(s):
@@ -15,6 +15,7 @@ Last Modified Date: 2025-04-18
 
 Comments:
 - v0.96 Ready to Zip and Ship: added Help menu and image popup
+- v0.97 Fixed QAction import for PyQt6
 """
 
 import sys
@@ -38,10 +39,9 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QMenuBar,
     QMenu,
-    QAction,
     QDialog,
 )
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QAction
 from PyQt6.QtCore import QTime, QProcess
 from image_drop_widget import ImageDropWidget
 
@@ -62,7 +62,7 @@ class PushItUI(QMainWindow):
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
 
-        # Build menu bar
+        # Menu bar
         menubar = QMenuBar(self)
         help_menu = menubar.addMenu("Help")
         help_action = QAction("Show Skippy", self)
@@ -144,7 +144,7 @@ class PushItUI(QMainWindow):
         self.process.readyReadStandardError.connect(self.handle_stderr)
         self.process.finished.connect(self.process_finished)
 
-        # Build UI form
+        # Build form and layout
         self._build_form(layout)
         layout.addWidget(QLabel("Drag & drop featured image:"))
         layout.addWidget(self.image_drop)
@@ -188,7 +188,7 @@ class PushItUI(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Skippy Says")
         dlg_layout = QVBoxLayout(dialog)
-        pix = QPixmap("")  # placeholder
+        pix = QPixmap()
         pix.load("/mnt/data/a82ae152-5072-424e-a6cd-3f578d28dada.png")
         img_label = QLabel(dialog)
         img_label.setPixmap(pix)
