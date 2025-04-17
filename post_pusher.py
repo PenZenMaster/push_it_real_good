@@ -9,19 +9,21 @@ Author(s):
 Skippy the Magnificent with an eensy weensy bit of help from that filthy monkey, Big G
 
 Created Date: 2025-04-14
-Last Modified Date: 2025-04-16
+Last Modified Date: 2025-04-17
 
 Comments:
-- v1.05 Ready to Zip and Ship: added logging and robust error handling
+- v1.06 Ready to Zip and Ship: refactored media upload helper, added type hints and docstrings
 """
 
 import argparse
 import json
-import os
-import requests
 import logging
+import calendar
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional, Dict, Any
+
+import requests
 from requests.exceptions import HTTPError, RequestException
 
 # Configure logging
@@ -34,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_schedule_timestamp(day_name: str, time_str: str) -> int:
-    """Return a UNIX timestamp for the next occurrence of day_name at time_str (HH:MM)"""
+    """Return a UNIX timestamp for the next occurrence of day_name at time_str (HH:MM)."""
     today = datetime.now()
     target_time = datetime.strptime(time_str, "%H:%M").time()
     days_ahead = (list(calendar.day_name).index(day_name) - today.weekday() + 7) % 7
@@ -44,37 +46,45 @@ def get_schedule_timestamp(day_name: str, time_str: str) -> int:
     return int(target.timestamp())
 
 
-def publish_file(file_path: Path, config: dict):
-    """Process a single HTML file: upload image, post or schedule on WP, and move file."""
+def upload_featured_image(local_path: str, config: Dict[str, Any]) -> Optional[int]:
+    """Upload a local image file to WordPress and return the media ID, or None on failure."""
+    url = f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media"
+    try:
+        with open(local_path, "rb") as img_file:
+            files = {"file": img_file}
+            response = requests.post(
+                url, auth=(config["username"], config["app_password"]), files=files
+            )
+            response.raise_for_status()
+            media_id = response.json().get("id")
+            logger.info("Uploaded featured image '%s' → ID %s", local_path, media_id)
+            return media_id
+    except OSError as e:
+        logger.error("I/O error uploading image '%s': %s", local_path, e)
+    except HTTPError as e:
+        logger.error("HTTP error uploading image '%s': %s", local_path, e)
+    except RequestException as e:
+        logger.error("Request exception uploading image '%s': %s", local_path, e)
+    return None
+
+
+def publish_file(file_path: Path, config: Dict[str, Any]) -> None:
+    """Process a single HTML file: upload image, post or schedule to WordPress, and move the file."""
     try:
         content = file_path.read_text(encoding="utf-8")
     except OSError as e:
         logger.error("I/O error reading '%s': %s", file_path, e)
         return
 
-    # Featured image upload
-    img_url = config.get("featured_image_url")
-    if img_url and img_url.startswith("file://"):
+    # Handle featured image
+    img_id: Optional[int] = None
+    img_url = config.get("featured_image_url", "")
+    if img_url.startswith("file://"):
         local_path = img_url.replace("file://", "")
-        try:
-            with open(local_path, "rb") as img_file:
-                files = {"file": img_file}
-                resp = requests.post(
-                    f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/media",
-                    auth=(config["username"], config["app_password"]),
-                    files=files,
-                )
-                resp.raise_for_status()
-                img_id = resp.json().get("id")
-                logger.info("Uploaded featured image '%s' → ID %s", local_path, img_id)
-        except (OSError, HTTPError) as e:
-            logger.error("Failed to upload image '%s': %s", local_path, e)
-            img_id = None
-    else:
-        img_id = None
+        img_id = upload_featured_image(local_path, config)
 
     # Build post payload
-    payload = {
+    payload: Dict[str, Any] = {
         "title": file_path.stem.replace("-", " ").title(),
         "content": content,
         "status": config.get("post_status", "draft"),
@@ -82,7 +92,7 @@ def publish_file(file_path: Path, config: dict):
     if img_id:
         payload["featured_media"] = img_id
 
-    # Schedule if needed
+    # Schedule post if needed
     if config.get("post_status") == "schedule":
         ts = get_schedule_timestamp(
             config.get("schedule_day", "Monday"), config.get("schedule_time", "00:00")
@@ -90,22 +100,22 @@ def publish_file(file_path: Path, config: dict):
         payload["date"] = datetime.fromtimestamp(ts).isoformat()
         logger.info("Scheduling post '%s' for %s", payload["title"], payload["date"])
 
-    # Create or update post
+    # Create post on WordPress
     try:
-        resp = requests.post(
+        response = requests.post(
             f"{config['wp_url'].rstrip('/')}/wp-json/wp/v2/posts",
             auth=(config["username"], config["app_password"]),
             json=payload,
         )
-        resp.raise_for_status()
-        post_id = resp.json().get("id")
+        response.raise_for_status()
+        post_id = response.json().get("id")
         logger.info("Posted '%s' → Post ID %s", payload["title"], post_id)
     except HTTPError as e:
         logger.error("HTTP error posting '%s': %s", payload["title"], e)
     except RequestException as e:
         logger.error("Request exception for '%s': %s", payload["title"], e)
 
-    # Move file to posted folder
+    # Move file to 'posted' folder
     try:
         dest = file_path.parent.parent / "posted" / file_path.name
         file_path.replace(dest)
@@ -114,7 +124,8 @@ def publish_file(file_path: Path, config: dict):
         logger.error("Error moving '%s' to posted: %s", file_path.name, e)
 
 
-def load_config(config_path: str) -> dict:
+def load_config(config_path: str) -> Dict[str, Any]:
+    """Load and return the JSON configuration from the given path."""
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -126,14 +137,15 @@ def load_config(config_path: str) -> dict:
         raise
 
 
-def main():
+def main() -> None:
+    """Entry point: parse args, load config, and process all HTML files in pre-post directory."""
     parser = argparse.ArgumentParser(description="Publish posts to WordPress")
     parser.add_argument("--config", required=True, help="Path to JSON config file")
     args = parser.parse_args()
 
     config = load_config(args.config)
-    source = Path(config["content_dir"]) / "pre-post"
-    for html_file in source.glob("*.html"):
+    source_dir = Path(config["content_dir"]) / "pre-post"
+    for html_file in source_dir.glob("*.html"):
         publish_file(html_file, config)
 
 
