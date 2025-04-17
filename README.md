@@ -1,12 +1,13 @@
 # Push It Real Good 🕺📤
 
-Automate WordPress blog publishing with Python and REST API.
+Automate WordPress blog publishing with Python and the WordPress REST API.
 
 ## 🚀 What It Does
-- Reads blog HTML from `/content/`
-- Uploads a featured image from a remote URL
+- Reads blog HTML from `content/<ProfileName>/pre-post/`
+- Uploads a featured image from a local path or remote URL
 - Publishes the post to WordPress via REST API
-- Supports category assignment and draft/publish toggle
+- Supports category assignment and draft/publish/schedule modes
+- Moves published files into `posted/` for archival
 
 ## 🧰 Requirements
 - Python 3.8+
@@ -15,124 +16,105 @@ Automate WordPress blog publishing with Python and REST API.
 
 ## 🔧 Setup
 
-1. Clone or copy this repo.
-2. Add your WordPress credentials to `config.json`:
-```json
-{
-  "wp_url": "https://your-wordpress-site.com",
-  "username": "your-username",
-  "app_password": "your-app-password",
-  "category_ids": [3],
-  "featured_image_url": "https://your-site.com/path-to-image.jpg"
-}
-```
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/PenZenMaster/push_it_real_good.git
+   cd push_it_real_good
+   ```
 
-3. Drop your HTML content into `/content/` and name the file something like `your-post.html`.
+2. **Create a Python virtual environment**
+   ```bash
+   python -m venv venv
+   .\venv\Scripts\activate   # Windows
+   ```
 
-## 🚦 Usage
-Run the script to post a blog:
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
+4. **Add publishing profiles**
+   - All configuration profiles live in `configs/`.
+   - Create a JSON file for each profile, e.g. `configs/default.json`:
+     ```json
+     {
+       "wp_url": "https://your-wordpress-site.com",
+       "username": "your-username",
+       "app_password": "your-app-password",
+       "category_ids": [3],
+       "featured_image_url": "https://your-site.com/path-to-image.jpg",
+       "content_dir": "content/ClientName",
+       "post_status": "draft",
+       "schedule_day": "Monday",
+       "schedule_time": "14:00"
+     }
+     ```
+
+5. **Prepare your content**
+   - For CLI mode, drop your HTML files into the profile folder’s `pre-post/` directory, e.g.:
+     ```
+     content/ClientName/pre-post/your-post.html
+     ```
+   - For UI mode, the GUI will handle the move between `pre-post/` and `posted/` automatically.
+
+## 🚦 CLI Usage
+
+By default, runs the `default.json` profile:
 ```bash
-python post_pusher.py
+python post_pusher.py --config configs/default.json
 ```
 
-## 📁 Project Structure
+You can specify any profile:
+```bash
+python post_pusher.py --config configs/ClientName.json
+```
+
+## 📂 Project Structure
 ```
 push_it_real_good/
-├── post_pusher.py         # Main Python script
-├── config.json            # Credentials & settings (excluded by .gitignore)
-├── content/               # HTML blog post files
-│   └── rate-comparison.html
-├── .gitignore             # Keeps sensitive and cluttery files out of Git
-└── README.md              # This file right here
+├── configs/                # JSON profile configs (one per client)
+│   ├── default.json
+│   └── ClientName.json
+├── content/                # Blog HTML files by profile
+│   └── ClientName/
+│       ├── pre-post/       # Ready-to-publish HTML here
+│       └── posted/         # Published posts moved here
+├── post_pusher.py          # Core publishing script
+├── push_it_ui_mvp.py       # PyQt GUI for managing profiles & publishing
+├── requirements.txt        # Pinned Python dependencies
+└── README.md               # This file
 ```
 
-## 🛡️ Security
-- Never commit `config.json` to a public repo.
-- Use an application password (not your WP login password).
-- Rotate app passwords if compromised.
-
 ---
-
-Made with code, coffee, and just a lil' funk by Skippy the Magnificent & Big G.
 
 # Push It Real Good UI
 
-A PyQt-powered graphical interface for managing WordPress blog publishing tasks with speed, accuracy, and style.
+A PyQt6-powered graphical interface for managing WordPress blog publishing tasks with speed, accuracy, and style.
 
----
-
-## 💾 Requirements
-
+## 💾 UI Requirements
 - Python 3.9+
 - PyQt6
 - requests
 - beautifulsoup4
-
----
-
-## 📦 Setup Instructions
-
-### 1. Clone the Repo
-```bash
-git clone https://yourrepo.url/push_it_real_good.git
-cd push_it_real_good
-```
-
-### 2. Create a Virtual Environment
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-```
-
-### 3. Install Dependencies
-```bash
-pip install pyqt6 requests beautifulsoup4
-```
-
----
 
 ## 🚀 How to Run the UI
 ```bash
 python push_it_ui_mvp.py
 ```
 
----
-
-## 📂 Project Structure
-```
-configs/                     # Saved UI configurations (.json)
-content/
-├── ClientName/
-│   ├── pre-post/            # Drop ready-to-publish HTML blogs here
-│   ├── posted/              # Published posts auto-moved here
-│   └── posts.json           # Metadata for each blog
-post_pusher.py               # Core publishing script
-push_it_ui_mvp.py            # This UI
-```
-
----
-
-## ✅ Features Implemented
+## ✅ UI Features Implemented
 - Save/recall named configuration profiles
-- Auto-generate directory structure for each client
-- Supports publish, draft, and scheduled post modes
-- WordPress credential test
-- Supports featured images from posts.json or config fallback
-
----
+- Auto-create `pre-post/` and `posted/` directories for each profile
+- Publish, draft, or schedule posts
+- WordPress credential testing
+- Drag & drop featured image selection (via ImageDropWidget)
 
 ## 🔮 Next Session Tasks
 1. Drag & drop blog upload to `pre-post/`
-2. Drag & drop image upload preview + URL insertion
-3. Launch publishing from UI
-4. Visual progress log / progress bar (text + pizzazz)
-5. Optional: Integration with Skippy Hemingway AI post generator
+2. Visual progress log / progress bar (text + animation)
+3. Launch publishing from GUI
+4. Optional: AI-assisted blog generation
 
 ---
 
-## 🧠 Powered By
-- Skippy the Magnificent
-- That filthy monkey Big G
-
-
+© 2025 Skippy the Magnificent & Big G
