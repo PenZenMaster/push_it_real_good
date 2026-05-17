@@ -98,7 +98,8 @@ A PyQt6-powered graphical interface for managing WordPress blog publishing tasks
 - beautifulsoup4
 
 ## 🚀 How to Run the UI
-```bash
+```PowerShell
+.\venv\Scripts\activate
 python push_it_ui_mvp.py
 ```
 

@@ -40,7 +40,7 @@ from PyQt6.QtWidgets import (
     QDialog,
 )
 from PyQt6.QtGui import QPixmap, QAction
-from PyQt6.QtCore import QTime, QProcess
+from PyQt6.QtCore import QTime, QProcess, pyqtSlot
 from image_drop_widget import ImageDropWidget
 
 CONFIG_DIR = "configs"
@@ -187,6 +187,7 @@ class PushItUI(QMainWindow):
         form.addRow("Schedule Time:", self.schedule_time_input)
         parent_layout.addLayout(form)
 
+    @pyqtSlot()
     def show_help_dialog(self):
         """Display Skippy help image in a popup dialog, trying both root and /images paths."""
         script_dir = os.path.dirname(__file__)
